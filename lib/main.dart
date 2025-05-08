@@ -13,11 +13,13 @@ class Sample extends StatefulWidget {
 class _Sample extends State<Sample> {
   var campaigns = [], redeemed = [], loyalties = [];
   var partnerId = "bb6dd223-c043-11ee-80aa-42010a67a10d";
-  var partnerKey = "32158ebf-dd61-11ee-9ef9-42010a67a110";
+  var partnerKey = "0ea5a89c-2b57-11f0-8dd8-42010a67a115";
+  var amount = 0.0;
+  var pin = "";
   SDK? spurr;
   _Sample() {
     spurr = new SDK(partnerId, partnerKey);
-    spurr?.setData('user90@yopmail.com', '+628110101001', 'ID', 'Kazao', 'TM');
+    spurr?.setData('user91@yopmail.com', '+628110101001', 'ID', 'Kazao', 'TM');
     spurr?.setLatLon(0, 0);
     // spurr.fly();
   }
@@ -90,88 +92,150 @@ class _Sample extends State<Sample> {
   }
 
   void showCampaign(context, data) {
+    print(data['merchantFlags']['approvalMethod']);
     var promotionName = data['promotionName'];
     var merchantName = data['merchantName'];
-    var message = "Waiting approval!";
-    // var color = Color.black;
-    AlertDialog dialog;
-    ImageProvider image = MemoryImage(
-        base64Decode("R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="));
-    spurr
-        ?.campaignQrcode({'promotionId': data['promotionId']}).then((response) {
-      if (response != null) {
-        var qrcodesId = response['qrcodesId'];
-        print(qrcodesId);
-        setState(() {
-          image = NetworkImage(
-              'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=$qrcodesId');
-        });
-        // var counter = 60;
-        // countdown() {
-        //   if (counter > 0) {
-        //     setState(() {
-        //       message = 'Waiting approval: $counter';
-        //       counter--;
-        //     });
-        //     Future.delayed(Duration(seconds: 1), countdown);
-        //   }
-        // }
-        // countdown();
-
-        spurr?.qrcodeStatus(qrcodesId).then((response) {
-          print(response);
-          setState(() {
-            message = "Redeemed successfully";
-          });
-          Future.delayed(Duration(seconds: 3), () {
-            Navigator.pop(context);
-          });
-        }).catchError((error) {
-          print(error);
-          setState(() {
-            message = "Timeout";
-          });
-          Future.delayed(Duration(seconds: 3), () {
-            Navigator.pop(context);
-          });
-        });
-      }
-    });
-
-    showDialog(
-        context: context,
-        builder: (context) {
-          dialog = AlertDialog(
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(
-                Radius.circular(
-                  20.0,
+    if (data['merchantFlags']['approvalMethod'] == "PIN") {
+      AlertDialog dialog;
+      print("Show Swipe and PIN");
+      showDialog(
+          context: context,
+          builder: (context) {
+            dialog = AlertDialog(
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+                  Radius.circular(
+                    20.0,
+                  ),
                 ),
               ),
-            ),
-            contentPadding: const EdgeInsets.only(
-              top: 10.0,
-            ),
-            title: Text(
-              '$promotionName by $merchantName',
-              style: const TextStyle(fontSize: 24.0),
-            ),
-            content: Container(
-              height: 400,
-              decoration: BoxDecoration(
-                image: DecorationImage(image: image),
+              contentPadding: const EdgeInsets.only(
+                top: 10.0,
               ),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  child: Text(message),
-                  padding: EdgeInsets.all(10),
+              title: Text(
+                '$promotionName by $merchantName',
+                style: const TextStyle(fontSize: 24.0),
+              ),
+              content: Column(
+                children: [
+                  const Text("Amount"),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 2),
+                    child: TextField(onChanged: (value) async {
+                      amount = double.parse(value);
+                    }),
+                  ),
+                  const Text("PIN"),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 2),
+                    child: TextField(onChanged: (value) async {
+                      pin = value;
+                    }),
+                  ),
+                  ElevatedButton(
+                      onPressed: () {
+                        print("issue");
+                        spurr?.issue({
+                          'type': 'promotion',
+                          'amount': amount,
+                          'pin': pin,
+                          'promotionId': data['promotionId'],
+                        }).then((response) {
+                          //
+                          print(response);
+                        }).catchError((error) {
+                          print(error);
+                        });
+                      },
+                      child: const Text("Submit")),
+                ],
+              ),
+            );
+            return dialog;
+          });
+    } else {
+      print("Show QR");
+      var message = "Waiting approval!";
+      // var color = Color.black;
+      AlertDialog dialog;
+      ImageProvider image = MemoryImage(
+          base64Decode("R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="));
+      spurr?.campaignQrcode({'promotionId': data['promotionId']}).then(
+          (response) {
+        if (response != null) {
+          var qrcodesId = response['qrcodesId'];
+          print(qrcodesId);
+          setState(() {
+            image = NetworkImage(
+                'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=$qrcodesId');
+          });
+          // var counter = 60;
+          // countdown() {
+          //   if (counter > 0) {
+          //     setState(() {
+          //       message = 'Waiting approval: $counter';
+          //       counter--;
+          //     });
+          //     Future.delayed(Duration(seconds: 1), countdown);
+          //   }
+          // }
+          // countdown();
+
+          spurr?.qrcodeStatus(qrcodesId).then((response) {
+            print(response);
+            setState(() {
+              message = "Redeemed successfully";
+            });
+            Future.delayed(Duration(seconds: 3), () {
+              Navigator.pop(context);
+            });
+          }).catchError((error) {
+            print(error);
+            setState(() {
+              message = "Timeout";
+            });
+            Future.delayed(Duration(seconds: 3), () {
+              Navigator.pop(context);
+            });
+          });
+        }
+      });
+
+      showDialog(
+          context: context,
+          builder: (context) {
+            dialog = AlertDialog(
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+                  Radius.circular(
+                    20.0,
+                  ),
                 ),
               ),
-            ),
-          );
-          return dialog;
-        });
+              contentPadding: const EdgeInsets.only(
+                top: 10.0,
+              ),
+              title: Text(
+                '$promotionName by $merchantName',
+                style: const TextStyle(fontSize: 24.0),
+              ),
+              content: Container(
+                height: 400,
+                decoration: BoxDecoration(
+                  image: DecorationImage(image: image),
+                ),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    child: Text(message),
+                    padding: EdgeInsets.all(10),
+                  ),
+                ),
+              ),
+            );
+            return dialog;
+          });
+    }
   }
 
   @override
